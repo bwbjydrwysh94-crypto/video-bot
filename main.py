@@ -4,6 +4,7 @@ import asyncio
 import tempfile
 import logging
 import threading
+import traceback
 from pathlib import Path
 from urllib.parse import urlparse
 from flask import Flask
@@ -24,12 +25,18 @@ from telegram.ext import (
     filters,
 )
 
-# =========================
-# إعدادات البوت والسيرفر الوهمي
-# =========================
+# إعدادات السيرفر الوهمي لـ Render
+flask_app = Flask(__name__)
 
-# قراءة التوكن بأمان من إعدادات المنصة (Environment Variables)
-BOT_TOKEN = os.getenv("8746342226:AAFyiCo5Dd7ZIdy78rni0NKnmMC0r6NI_bs ")
+@flask_app.route('/')
+def home():
+    return "Bot is active and running 24/7! ✅"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    flask_app.run(host="0.0.0.0", port=port)
+
+BOT_TOKEN = os.getenv("8746342226:AAFyiCo5Dd7ZIdy78rni0NKnmMC0r6NI_bs")
 
 MAX_FILE_MB = 45
 MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024
@@ -48,23 +55,11 @@ BLOCKED = set()
 
 URL_PATTERN = re.compile(r"https?://\S+", re.IGNORECASE)
 
-# إنشاء سيرفر Flask البسيط ليظل البوت مستيقظاً 24/7 عبر UptimeRobot
-flask_app = Flask(__name__)
-
-@flask_app.route('/')
-def home():
-    return "Bot is active and running 24/7! ✅"
-
-def run_flask():
-    port = int(os.environ.get("PORT", 8080))
-    flask_app.run(host="0.0.0.0", port=port)
-
-
 def extract_url(text: str):
     match = URL_PATTERN.search(text or "")
     if not match:
         return None
-    url = match.group(0).rstrip(".,!?)]}")
+    url = match.group(0).rstrip(".,!?)])}")
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
         return None
@@ -72,7 +67,6 @@ def extract_url(text: str):
     if host == "localhost" or host.endswith(".local") or host in {"127.0.0.1", "0.0.0.0", "::1"}:
         return None
     return url
-
 
 def site_name(url: str) -> str:
     host = (urlparse(url).hostname or "").lower()
@@ -89,11 +83,9 @@ def site_name(url: str) -> str:
             return name
     return host or "موقع غير معروف"
 
-
 def safe_filename(name: str) -> str:
     name = re.sub(r'[\\/*?:"<>|]', "_", name or "media")
     return name[:100].strip() or "media"
-
 
 def make_keyboard():
     return InlineKeyboardMarkup([
@@ -106,7 +98,6 @@ def make_keyboard():
         ],
     ])
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if not user:
@@ -117,7 +108,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "أرسل رابطًا عامًا لمحتوى تريد تنزيله.\n"
         "سأحاول تحديد الموقع والخيارات المتاحة."
     )
-
 
 async def receive_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -138,7 +128,6 @@ async def receive_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "اختر نوع المحتوى الذي تريد تجربته:",
         reply_markup=make_keyboard(),
     )
-
 
 def ydl_options(download: bool, audio: bool = False):
     options = {
@@ -164,7 +153,6 @@ def ydl_options(download: bool, audio: bool = False):
         options["format"] = "best[filesize<45M]/best"
     return options
 
-
 def run_extract(url: str, download: bool, audio: bool = False):
     with yt_dlp.YoutubeDL(ydl_options(download, audio)) as ydl:
         info = ydl.extract_info(url, download=download)
@@ -175,7 +163,6 @@ def run_extract(url: str, download: bool, audio: bool = False):
         if not info:
             raise RuntimeError("لم يتم العثور على محتوى قابل للمعالجة.")
         return info
-
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -234,22 +221,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except OSError:
             pass
 
-
 def main():
-    if not BOT_TOKEN:
-        raise SystemExit("خطأ: لم يتم تعيين BOT_TOKEN في المتغيرات البيئية.")
+    try:
+        if not BOT_TOKEN:
+            print("خطأ حرج: لم يتم تعيين BOT_TOKEN في المتغيرات البيئية.")
+            return
 
-    # تشغيل سيرفر Flask في الخلفية لضمان عمل البوت على Render
-    threading.Thread(target=run_flask, daemon=True).start()
+        # تشغيل سيرفر Flask في الخلفية
+        threading.Thread(target=run_flask, daemon=True).start()
 
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_url))
+        app = Application.builder().token(BOT_TOKEN).build()
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(CallbackQueryHandler(button_handler))
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_url))
 
-    print("البوت والسيرفر يعملان بنجاح ✅")
-    app.run_polling(drop_pending_updates=False)
-
+        print("البوت والسيرفر يعملان بنجاح ✅")
+        app.run_polling(drop_pending_updates=False)
+    except Exception as e:
+        print(f"حدث استثناء أدى لتوقف التطبيق: {e}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
