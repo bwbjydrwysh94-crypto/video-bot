@@ -36,7 +36,7 @@ def run_flask():
     port = int(os.environ.get("PORT", 10000))
     flask_app.run(host="0.0.0.0", port=port)
 
-BOT_TOKEN = os.getenv("8746342226:AAFyiCo5Dd7ZIdy78rni0NKnmMC0r6NI_bs")
+BOT_TOKEN ="8746342226:AAFyiCo5Dd7ZIdy78rni0NKnmMC0r6NI_bs"
 
 MAX_FILE_MB = 45
 MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024
