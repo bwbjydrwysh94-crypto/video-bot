@@ -64,7 +64,7 @@ def extract_url(text: str):
     match = URL_PATTERN.search(text or "")
     if not match:
         return None
-    url = match.group(0).rstrip(".,!?)\]}")
+    url = match.group(0).rstrip(".,!?)]}")
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
         return None
