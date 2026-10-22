@@ -38,7 +38,7 @@ def run_flask():
 
 BOT_TOKEN ="8746342226:AAFyiCo5Dd7ZIdy78rni0NKnmMC0r6NI_bs"
 
-MAX_FILE_MB = 45
+MAX_FILE_MB = 50
 MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024
 
 DOWNLOAD_DIR = Path(tempfile.gettempdir()) / "almuneer_downloader"
